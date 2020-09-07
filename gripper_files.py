@@ -17,9 +17,9 @@ from geolib.bbox import Bbox
 from vis_lib import *
 from math_utils import *
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-GRIPPER_DIR = os.path.join(BASE_DIR,'../',"grippers")
-MESH_DIR = "./gripper_data/robotiq3f/meshes"
+#BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+#GRIPPER_DIR = os.path.join(BASE_DIR,'../',"grippers")
+#MESH_DIR = "./gripper_data/robotiq3f/meshes"
 
 class Pose(object):
   def __init__(self, pose_in_urdf):
@@ -517,8 +517,11 @@ class Gripper(object):
 
 
 if __name__ == "__main__":
+  ###### Example of loading and visualizing the robotiq3f
+
   GRIPPER_DIR = "./gripper_data/robotiq3f"
-  GRIPPER_MESH_DIR = "./gripper_data/robotiq3f/meshes"
+  MESH_DIR = "./gripper_data/robotiq3f/meshes"
+
   ### Gripper Model
   urdf_file = os.path.join(GRIPPER_DIR,"robotiq_3f_test.urdf")
   with open(urdf_file,'r') as myfile:
@@ -526,7 +529,7 @@ if __name__ == "__main__":
   gripper_in_urdf = URDF.from_xml_string(urdf_strings)
 
   tip_pc = np.array([0.033,0.0079,0])
-  gripper = Gripper(gripper_in_urdf=gripper_in_urdf,tip_pc=tip_pc,mesh_top_dir=GRIPPER_MESH_DIR)
+  gripper = Gripper(gripper_in_urdf=gripper_in_urdf,tip_pc=tip_pc,mesh_top_dir=MESH_DIR)
   gripper.joint_map['finger_1_joint_3'].default_joint_value = -0.6632
   gripper.joint_map['finger_2_joint_3'].default_joint_value = -0.6632
   gripper.joint_map['finger_middle_joint_3'].default_joint_value = -0.6632
@@ -536,3 +539,7 @@ if __name__ == "__main__":
   gripper.vis()
   mayalab.show()
 
+  ###### Forward Kinematics
+  #print(gripper.joint_map)
+  #gripper.joint_map['finger_middle_joint_1'] = np.pi/8.0
+  #gripper.joint_map['finger_2_joint_2'] = np.pi/8.0
