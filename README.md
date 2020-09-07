@@ -1,4 +1,4 @@
-# A Python URDF Parser For Robotic Gripper used in Our UniGrasp Project
+# A Python URDF Parser For Robotic Gripper in UniGrasp Project
 UniGrasp: Learning a Unified Model to Grasp with Multifingered Robotic Hands
 : https://sites.google.com/view/unigrasp
 
