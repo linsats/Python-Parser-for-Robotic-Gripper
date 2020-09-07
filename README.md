@@ -3,7 +3,7 @@
 ## Get Started
 1.Initialize repository
 ```
-git clone https://github.com/stanford-iprl-lab/UniGrasp.git
+git clone https://github.com/linsats/Python-Parser-for-Robotic-Gripper.git
 ```
 
 2.Install requirement
