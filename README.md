@@ -1,4 +1,12 @@
-# A Python URDF Parser For Robotic Gripper used in Our UniGrasp Project: https://sites.google.com/view/unigrasp
+# A Python URDF Parser For Robotic Gripper used in Our UniGrasp Project
+UniGrasp: Learning a Unified Model to Grasp with Multifingered Robotic Hands
+: https://sites.google.com/view/unigrasp
+
+## Functions
+1.Load and Visualize URDF of Robotic Hands.
+2.Forward Kinematics 
+3.Inverse Kienmatics
+4.Sample Point Clouds
 
 ## Get Started
 1.Initialize repository
@@ -14,6 +22,7 @@ pip3 install -r requirement.txt
 3.Run
 ```
 python gripper_files.py
+
 ```
 
 
