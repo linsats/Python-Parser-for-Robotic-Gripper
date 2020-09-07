@@ -4,8 +4,11 @@ UniGrasp: Learning a Unified Model to Grasp with Multifingered Robotic Hands
 
 ## Functions
 1.Load and Visualize URDF of Robotic Hands.
+
 2.Forward Kinematics 
+
 3.Inverse Kienmatics
+
 4.Sample Point Clouds
 
 ## Get Started
