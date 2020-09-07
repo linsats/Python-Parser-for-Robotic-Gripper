@@ -173,6 +173,7 @@ class Mesh(object):
   def __init__(self,filename=None,scale=None):
     self.filename = filename.strip().split('file://')[1]
     self.scale = scale
+    print("filename",self.filename)
     self.mesh = OBJ(file_name=self.filename)
     self.pc = self.mesh.sample_points(4096,with_normal=False)[0]
  
