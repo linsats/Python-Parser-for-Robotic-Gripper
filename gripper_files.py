@@ -15,141 +15,11 @@ from geolib.objfile import OBJ
 from geolib.bbox import Bbox
 
 from vis_lib import *
+from math_utils import *
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 GRIPPER_DIR = os.path.join(BASE_DIR,'../',"grippers")
-
-_EPS = 1e-8
-
-# axis sequences for Euler angles
-_NEXT_AXIS = [1, 2, 0, 1]
-# map axes strings to/from tuples of inner axis, parity, repetition, frame
-_AXES2TUPLE = {
-    'sxyz': (0, 0, 0, 0), 'sxyx': (0, 0, 1, 0), 'sxzy': (0, 1, 0, 0),
-    'sxzx': (0, 1, 1, 0), 'syzx': (1, 0, 0, 0), 'syzy': (1, 0, 1, 0),
-    'syxz': (1, 1, 0, 0), 'syxy': (1, 1, 1, 0), 'szxy': (2, 0, 0, 0),
-    'szxz': (2, 0, 1, 0), 'szyx': (2, 1, 0, 0), 'szyz': (2, 1, 1, 0),
-    'rzyx': (0, 0, 0, 1), 'rxyx': (0, 0, 1, 1), 'ryzx': (0, 1, 0, 1),
-    'rxzx': (0, 1, 1, 1), 'rxzy': (1, 0, 0, 1), 'ryzy': (1, 0, 1, 1),
-    'rzxy': (1, 1, 0, 1), 'ryxy': (1, 1, 1, 1), 'ryxz': (2, 0, 0, 1),
-    'rzxz': (2, 0, 1, 1), 'rxyz': (2, 1, 0, 1), 'rzyz': (2, 1, 1, 1)}
-
-_TUPLE2AXES = dict((v, k) for k, v in _AXES2TUPLE.items())
-
-def vector_norm(data, axis=None, out=None):
-    data = numpy.array(data, dtype=numpy.float64, copy=True)
-    if out is None:
-        if data.ndim == 1:
-            return math.sqrt(numpy.dot(data, data))
-        data *= data
-        out = numpy.atleast_1d(numpy.sum(data, axis=axis))
-        numpy.sqrt(out, out)
-        return out
-    else:
-        data *= data
-        numpy.sum(data, axis=axis, out=out)
-        numpy.sqrt(out, out)
-
-def quaternion_about_axis(angle, axis):
-    q = numpy.array([0.0, axis[0], axis[1], axis[2]])
-    qlen = vector_norm(q)
-    if qlen > _EPS:
-        q *= math.sin(angle/2.0) / qlen
-    q[0] = math.cos(angle/2.0)
-    return q
-
-def quaternion_matrix(quaternion):
-    q = numpy.array(quaternion, dtype=numpy.float64, copy=True)
-    n = numpy.dot(q, q)
-    if n < _EPS:
-        return numpy.identity(4)
-    q *= math.sqrt(2.0 / n)
-    q = numpy.outer(q, q)
-    return numpy.array([
-        [1.0-q[2, 2]-q[3, 3],     q[1, 2]-q[3, 0],     q[1, 3]+q[2, 0], 0.0],
-        [    q[1, 2]+q[3, 0], 1.0-q[1, 1]-q[3, 3],     q[2, 3]-q[1, 0], 0.0],
-        [    q[1, 3]-q[2, 0],     q[2, 3]+q[1, 0], 1.0-q[1, 1]-q[2, 2], 0.0],
-        [                0.0,                 0.0,                 0.0, 1.0]])
-
-
-def angleaxis_rotmat(angle,axis):
-  quater = quaternion_about_axis(angle,axis)
-  return quaternion_matrix(quater)
-
-def rpy_rotmat(rpy):
-  rotmat = np.zeros((3,3))
-  roll   = rpy[0]
-  pitch  = rpy[1]
-  yaw    = rpy[2]
-  rotmat[0,0] = np.cos(yaw) * np.cos(pitch)
-  rotmat[0,1] = np.cos(yaw) * np.sin(pitch) * np.sin(roll) - np.sin(yaw) * np.cos(roll)
-  rotmat[0,2] = np.cos(yaw) * np.sin(pitch) * np.cos(roll) + np.sin(yaw) * np.sin(roll)
-  rotmat[1,0] = np.sin(yaw) * np.cos(pitch)
-  rotmat[1,1] = np.sin(yaw) * np.sin(pitch) * np.sin(roll) + np.cos(yaw) * np.cos(roll)
-  rotmat[1,2] = np.sin(yaw) * np.sin(pitch) * np.cos(roll) - np.cos(yaw) * np.sin(roll)
-  rotmat[2,0] = - np.sin(pitch)
-  rotmat[2,1] = np.cos(pitch) * np.sin(roll)
-  rotmat[2,2] = np.cos(pitch) * np.cos(roll)
-  return rotmat
-
-
-def euler_from_matrix(matrix, axes='sxyz'):
-    """Return Euler angles from rotation matrix for specified axis sequence.
-
-    axes : One of 24 axis sequences as string or encoded tuple
-
-    Note that many Euler angle triplets can describe one matrix.
-
-    >>> R0 = euler_matrix(1, 2, 3, 'syxz')
-    >>> al, be, ga = euler_from_matrix(R0, 'syxz')
-    >>> R1 = euler_matrix(al, be, ga, 'syxz')
-    >>> numpy.allclose(R0, R1)
-    True
-    >>> angles = (4*math.pi) * (numpy.random.random(3) - 0.5)
-    >>> for axes in _AXES2TUPLE.keys():
-    ...    R0 = euler_matrix(axes=axes, *angles)
-    ...    R1 = euler_matrix(axes=axes, *euler_from_matrix(R0, axes))
-    ...    if not numpy.allclose(R0, R1): print(axes, "failed")
-
-    """
-    try:
-        firstaxis, parity, repetition, frame = _AXES2TUPLE[axes.lower()]
-    except (AttributeError, KeyError):
-        _TUPLE2AXES[axes]  # noqa: validation
-        firstaxis, parity, repetition, frame = axes
-
-    i = firstaxis
-    j = _NEXT_AXIS[i+parity]
-    k = _NEXT_AXIS[i-parity+1]
-
-    M = numpy.array(matrix, dtype=numpy.float64, copy=False)[:3, :3]
-    if repetition:
-        sy = math.sqrt(M[i, j]*M[i, j] + M[i, k]*M[i, k])
-        if sy > _EPS:
-            ax = math.atan2( M[i, j],  M[i, k])
-            ay = math.atan2( sy,       M[i, i])
-            az = math.atan2( M[j, i], -M[k, i])
-        else:
-            ax = math.atan2(-M[j, k],  M[j, j])
-            ay = math.atan2( sy,       M[i, i])
-            az = 0.0
-    else:
-        cy = math.sqrt(M[i, i]*M[i, i] + M[j, i]*M[j, i])
-        if cy > _EPS:
-            ax = math.atan2( M[k, j],  M[k, k])
-            ay = math.atan2(-M[k, i],  cy)
-            az = math.atan2( M[j, i],  M[i, i])
-        else:
-            ax = math.atan2(-M[j, k],  M[j, j])
-            ay = math.atan2(-M[k, i],  cy)
-            az = 0.0
-
-    if parity:
-        ax, ay, az = -ax, -ay, -az
-    if frame:
-        ax, az = az, ax
-    return ax, ay, az
-
+MESH_DIR = "./gripper_data/robotiq3f/meshes"
 
 class Pose(object):
   def __init__(self, pose_in_urdf):
@@ -171,7 +41,7 @@ class JointLimit(object):
 
 class Mesh(object):
   def __init__(self,filename=None,scale=None):
-    self.filename = filename.strip().split('file://')[1]
+    self.filename = os.path.join(MESH_DIR,filename.strip())
     self.scale = scale
     print("filename",self.filename)
     self.mesh = OBJ(file_name=self.filename)
@@ -359,8 +229,9 @@ class Chain(object):
 
 
 class Gripper(object):
-  def __init__(self,gripper_in_urdf,tip_pc):
+  def __init__(self,gripper_in_urdf,tip_pc,mesh_top_dir=None):
     self.name = gripper_in_urdf.name
+    self.mesh_top_dir = mesh_top_dir
     self.tip_pc = tip_pc
 
     self.links = []
@@ -646,8 +517,8 @@ class Gripper(object):
 
 
 if __name__ == "__main__":
-  GRIPPER_DIR = "/home/lins/MetaGrasp/grippers"  
- 
+  GRIPPER_DIR = "./gripper_data/robotiq3f"
+  GRIPPER_MESH_DIR = "./gripper_data/robotiq3f/meshes"
   ### Gripper Model
   urdf_file = os.path.join(GRIPPER_DIR,"robotiq_3f_test.urdf")
   with open(urdf_file,'r') as myfile:
@@ -655,7 +526,7 @@ if __name__ == "__main__":
   gripper_in_urdf = URDF.from_xml_string(urdf_strings)
 
   tip_pc = np.array([0.033,0.0079,0])
-  gripper = Gripper(gripper_in_urdf=gripper_in_urdf,tip_pc=tip_pc)
+  gripper = Gripper(gripper_in_urdf=gripper_in_urdf,tip_pc=tip_pc,mesh_top_dir=GRIPPER_MESH_DIR)
   gripper.joint_map['finger_1_joint_3'].default_joint_value = -0.6632
   gripper.joint_map['finger_2_joint_3'].default_joint_value = -0.6632
   gripper.joint_map['finger_middle_joint_3'].default_joint_value = -0.6632
@@ -665,143 +536,3 @@ if __name__ == "__main__":
   gripper.vis()
   mayalab.show()
 
-  #### IK test
-  f1_tip = gripper.chain_map['finger_1_link_3']
-  f2_tip = gripper.chain_map['finger_2_link_3']
-  f3_tip = gripper.chain_map['finger_middle_link_3']
- 
-  target_base_frame = np.eye(4)
-
-  gripper.link_map['base_link'].base_T = np.copy(target_base_frame)
-
-
-  target_frame_1 = f1_tip.forward_kinematics([0.4,0.1])
-  target_frame_2 = f2_tip.forward_kinematics([0.5,-0.1])
-  target_frame_3 = f3_tip.forward_kinematics([0.1])
-
-
-  target_tip_1 = target_base_frame.dot(target_frame_1) 
-  target_tip_2 = target_base_frame.dot(target_frame_2)
-  target_tip_3 = target_base_frame.dot(target_frame_3)
-
-###########################
-# Set the target_tip 
-###########################
-  env_dir = '/home/lins/MetaGrasp/Data/BlensorResult/003'
-  #obj_path = [os.path.join(env_dir,f) for f in os.listdir(env_dir) if f.endswith('_pcn_new_normal.npz.npy')][0]
-  #obj_pcs = np.load(obj_path[0])
-  #plot_pc(obj_pcs[:,:3])
-  #mayalab.show()
-
-  f1_tip_pc = target_tip_1[:3,3]
-  f1_tip_pc = np.array(f1_tip_pc).reshape((-1,3))
-  f1_tip_n = np.copy(target_tip_1[:3,1])
-  f1_tip_n = np.array(f1_tip_n).reshape((-1,3))
-  plot_pc(f1_tip_pc,color='r',mode='sphere',scale_factor=.01)
-  plot_pc_with_normal(f1_tip_pc,f1_tip_n * 0.01,scale_factor=0.1)
-
-  f2_tip_pc = target_tip_2[:3,3]
-  f2_tip_pc = np.array(f2_tip_pc).reshape((-1,3))
-  f2_tip_n = np.copy(target_tip_2[:3,1])
-  f2_tip_n = np.array(f2_tip_n).reshape((-1,3))
-  plot_pc(f2_tip_pc,color='green',mode='sphere',scale_factor=.01)
-  plot_pc_with_normal(f2_tip_pc,f2_tip_n * 0.01,scale_factor=0.1)
-
-  f3_tip_pc = target_tip_3[:3,3]
-  f3_tip_pc = np.array(f3_tip_pc).reshape((-1,3))
-  f3_tip_n = np.copy(target_tip_3[:3,1])
-  f3_tip_n = np.array(f3_tip_n).reshape((-1,3))
-  plot_pc(f3_tip_pc,color='blue',mode='sphere',scale_factor=.01)
-  plot_pc_with_normal(f3_tip_pc,f3_tip_n * 0.01,scale_factor=0.1)
-
-
-
-  print("f1_tip_pc",f1_tip_pc)
-  print("f2_tip_pc",f2_tip_pc)
-  print("f3_tip_pc",f3_tip_pc)
-
-  #target_frame = target_frame_3
-  #print("target_frame")
-  #print(target_frame)
-  #print(target_frame_1)
-  #print(target_frame_2) 
-  #ik_re = f3_tip.inverse_kinematics(target_frame,initial_position=[0,0,0.8,0.01])
-  #print("ik_result",ik_re)
-  #print("test_frame")
-  #print(f3_tip.forward_kinematics(ik_re)) 
-
-  origin_pc = np.array([0.0,0.0,0.0]).reshape((-1,3))
-  plot_pc(origin_pc,color='ycan',mode='sphere',scale_factor=.01)
-  origin_pcs = np.tile(origin_pc,(3,1))     
-  origin_pcns = np.eye(3) * 0.01 
-  print(origin_pcns)
-  plot_pc_with_normal(origin_pcs,origin_pcns)
-  print(origin_pcs.shape)
-  #gripper.vis()
-  #plot_pc(tmp.pcn[:,0:3]) 
-  #plot_pc(tmp.grasp_xyz)
-  #for i in range(10,11):
-  #  idx = tmp.grasp_bestIdList[i]
-  #  pc = np.vstack([tmp.pcn[tmp.contacts1[idx],:3],tmp.pcn[tmp.contacts2[idx],:3],tmp.pcn[tmp.contacts3[idx],:3]])
-  #  pcn = np.vstack([tmp.pcn[tmp.contacts1[idx],3:],tmp.pcn[tmp.contacts2[idx],3:],tmp.pcn[tmp.contacts3[idx],3:]])
-  #  plot_pc_with_normal(pc,pcn)
-  
-  target_tips = []
-  target_tips.append(target_tip_1)
-  target_tips.append(target_tip_2)
-  target_tips.append(target_tip_3)   
-
-   
-  q_list,_ = gripper.inverse_kinematic(target_tips,gripper.chain_map['finger_1_link_3'],gripper.chain_map['finger_2_link_3'],gripper.chain_map['finger_middle_link_3'],rot=True)
-  gripper.link_map['base_link'].base_T = np.eye(4)
-  gripper.link_map['base_link'].base_T[:3,:3] = np.copy(rpy_rotmat(q_list[:3]))   
-  gripper.link_map['base_link'].base_T[:3,-1] = np.copy(q_list[3:6])   
- 
-
-  count = 6
-  for idx,joint in enumerate(f1_tip.joints):
-    if f1_tip.active_joints_mask[idx]:
-      gripper.q_value_map[joint.name] = q_list[count]
-      print("joint.name",q_list[count],count)
-      count  = count + 1
-  predict_f1_tip = gripper.link_map['base_link'].base_T.dot(gripper.chain_map['finger_1_link_3'].forward_kinematics([q_list[6],q_list[7]]))
-  predict_f1_tip = np.array(predict_f1_tip[:3,-1]).reshape((-1,3))
-  plot_pc(predict_f1_tip,color='r',mode='cube',scale_factor=.005)
-
-  for idx,joint in enumerate(f2_tip.joints):
-    if f2_tip.active_joints_mask[idx]:
-      gripper.q_value_map[joint.name] = q_list[count]
-      count  = count + 1
-
-
-  predict_f2_tip = gripper.link_map['base_link'].base_T.dot(gripper.chain_map['finger_2_link_3'].forward_kinematics([q_list[8],q_list[9]]))
-  predict_f2_tip = np.array(predict_f2_tip[:3,-1]).reshape((-1,3))
-  plot_pc(predict_f2_tip,color='green',mode='cube',scale_factor=.005)
-
-  
-  for idx,joint in enumerate(f3_tip.joints):
-    if f3_tip.active_joints_mask[idx]:
-      gripper.q_value_map[joint.name] = q_list[count]
-      count  = count + 1
-  predict_f3_tip = gripper.link_map['base_link'].base_T.dot(gripper.chain_map['finger_middle_link_3'].forward_kinematics([q_list[10]]))
-  predict_f3_tip = np.array(predict_f3_tip[:3,-1]).reshape((-1,3))
-  plot_pc(predict_f3_tip,color='blue',mode='cube',scale_factor=.005)
-
-  print(predict_f3_tip)
-  gripper.vis()
-
-  rpy_tmp=np.array([3.1,-3.1,3.13])
-  print("rpy_tmp")
-  print(rpy_tmp)
-  print(rpy_rotmat(rpy_tmp))
-  print(euler_from_matrix(rpy_rotmat(rpy_tmp)))
-  print(rpy_rotmat(euler_from_matrix(rpy_rotmat(rpy_tmp))))
-  gripper.vis_all_bbox()
-
-  mayalab.show()
-
-#### If fixed based, GT	is true then error = 0.0003 or 0.002 
-#### If fixed based, GT	is false then error = 0.012 
-#### If only fixed rotation, GT is true then error 0.001 or 0.001042
-#### If only fixed rotation, GT is false then error 0.01
-###  If not fixed base, GT is true then error 0.002 
