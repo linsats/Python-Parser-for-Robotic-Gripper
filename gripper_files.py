@@ -539,7 +539,102 @@ if __name__ == "__main__":
   gripper.vis()
   mayalab.show()
 
-  ###### Forward Kinematics
-  #print(gripper.joint_map)
-  #gripper.joint_map['finger_middle_joint_1'] = np.pi/8.0
-  #gripper.joint_map['finger_2_joint_2'] = np.pi/8.0
+  #####  Forward Kinematics
+  gripper.q_value_map['finger_1_joint_1'] = 0.9
+  gripper.q_value_map['palm_finger_1_joint'] = 0.9
+  gripper.q_value_map['finger_2_joint_1'] = 0.9
+  gripper.q_value_map['palm_finger_2_joint'] = 0.9
+  gripper.q_value_map['finger_middle_joint_1'] = 0.9
+
+  gripper.vis()
+  mayalab.show()
+
+  ######Inverse Kinematics
+  f1_tip = gripper.chain_map['finger_1_link_3']
+  f2_tip = gripper.chain_map['finger_2_link_3']
+  f3_tip = gripper.chain_map['finger_middle_link_3']
+
+  target_base_frame = np.eye(4)
+  gripper.link_map['base_link'].base_T = np.copy(target_base_frame)
+
+  target_frame_1 = f1_tip.forward_kinematics([0.4,0.1])
+  target_frame_2 = f2_tip.forward_kinematics([0.5,-0.1])
+  target_frame_3 = f3_tip.forward_kinematics([0.1])
+
+  target_tip_1 = target_base_frame.dot(target_frame_1)
+  target_tip_2 = target_base_frame.dot(target_frame_2)
+  target_tip_3 = target_base_frame.dot(target_frame_3)
+
+  f1_tip_pc = target_tip_1[:3,3]
+  f1_tip_pc = np.array(f1_tip_pc).reshape((-1,3))
+  f1_tip_n = np.copy(target_tip_1[:3,1])
+  f1_tip_n = np.array(f1_tip_n).reshape((-1,3))
+  plot_pc(f1_tip_pc,color='red',mode='sphere',scale_factor=.01)
+  plot_pc_with_normal(f1_tip_pc,f1_tip_n * 0.01,scale_factor=0.1)
+
+  f2_tip_pc = target_tip_2[:3,3]
+  f2_tip_pc = np.array(f2_tip_pc).reshape((-1,3))
+  f2_tip_n = np.copy(target_tip_2[:3,1])
+  f2_tip_n = np.array(f2_tip_n).reshape((-1,3))
+  plot_pc(f2_tip_pc,color='green',mode='sphere',scale_factor=.01)
+  plot_pc_with_normal(f2_tip_pc,f2_tip_n * 0.01,scale_factor=0.1)
+
+  f3_tip_pc = target_tip_3[:3,3]
+  f3_tip_pc = np.array(f3_tip_pc).reshape((-1,3))
+  f3_tip_n = np.copy(target_tip_3[:3,1])
+  f3_tip_n = np.array(f3_tip_n).reshape((-1,3))
+  plot_pc(f3_tip_pc,color='blue',mode='sphere',scale_factor=.01)
+  plot_pc_with_normal(f3_tip_pc,f3_tip_n * 0.01,scale_factor=0.1)
+
+  target_tips = []
+  target_tips.append(target_tip_1)
+  target_tips.append(target_tip_2)
+  target_tips.append(target_tip_3)
+
+  plot_origin()
+
+  #mayalab.show()
+
+  q_list,_ = gripper.inverse_kinematic(target_tips,gripper.chain_map['finger_1_link_3'],gripper.chain_map['finger_2_link_3'],gripper.chain_map['finger_middle_link_3'],rot=True)
+  gripper.link_map['base_link'].base_T = np.eye(4)
+  gripper.link_map['base_link'].base_T[:3,:3] = np.copy(rpy_rotmat(q_list[:3]))
+  gripper.link_map['base_link'].base_T[:3,-1] = np.copy(q_list[3:6])
+
+  count = 6
+  for idx,joint in enumerate(f1_tip.joints):
+    if f1_tip.active_joints_mask[idx]:
+      gripper.q_value_map[joint.name] = q_list[count]
+      print("joint.name",joint.name,q_list[count],count)
+      count  = count + 1
+  predict_f1_tip = gripper.link_map['base_link'].base_T.dot(gripper.chain_map['finger_1_link_3'].forward_kinematics([q_list[6],q_list[7]]))
+  predict_f1_tip = np.array(predict_f1_tip[:3,-1]).reshape((-1,3))
+  plot_pc(predict_f1_tip,color='red',mode='cube',scale_factor=.005)
+
+  for idx,joint in enumerate(f2_tip.joints):
+    if f2_tip.active_joints_mask[idx]:
+      gripper.q_value_map[joint.name] = q_list[count]
+      print("joint.name", joint.name, q_list[count], count)
+      count  = count + 1
+
+  predict_f2_tip = gripper.link_map['base_link'].base_T.dot(gripper.chain_map['finger_2_link_3'].forward_kinematics([q_list[8],q_list[9]]))
+  predict_f2_tip = np.array(predict_f2_tip[:3,-1]).reshape((-1,3))
+  plot_pc(predict_f2_tip,color='green',mode='cube',scale_factor=.005)
+
+  for idx,joint in enumerate(f3_tip.joints):
+    if f3_tip.active_joints_mask[idx]:
+      gripper.q_value_map[joint.name] = q_list[count]
+      print("joint.name", joint.name, q_list[count], count)
+      count  = count + 1
+  predict_f3_tip = gripper.link_map['base_link'].base_T.dot(gripper.chain_map['finger_middle_link_3'].forward_kinematics([q_list[10]]))
+  predict_f3_tip = np.array(predict_f3_tip[:3,-1]).reshape((-1,3))
+  plot_pc(predict_f3_tip,color='blue',mode='cube',scale_factor=.005)
+
+  #gripper.get_all_T0()
+  gripper.vis()
+  mayalab.show()
+
+
+  #### Sample Point Clouds
+  gripper.pc_whole
+
+
