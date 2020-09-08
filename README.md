@@ -11,7 +11,7 @@ UniGrasp: Learning a Unified Model to Grasp with Multifingered Robotic Hands
 
 4.Sample Point Clouds
 
-![](imgs/example2.png)
+![](imgs/example3.png)
 
 ## Get Started
 1.Initialize repository
