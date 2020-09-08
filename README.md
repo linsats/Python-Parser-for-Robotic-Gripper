@@ -11,6 +11,8 @@ UniGrasp: Learning a Unified Model to Grasp with Multifingered Robotic Hands
 
 4.Sample Point Clouds
 
+![](imgs/example1.png)
+
 ## Get Started
 1.Initialize repository
 ```
@@ -19,7 +21,7 @@ git clone https://github.com/linsats/Python-Parser-for-Robotic-Gripper.git
 
 2.Install requirement
 ```
-pip3 install -r requirement.txt
+pip3 install -r requirements.txt
 ```
 
 3.Run
