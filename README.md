@@ -25,7 +25,7 @@ git clone https://github.com/linsats/Python-Parser-for-Robotic-Gripper.git
 conda create --name gripper --file requirements.txt
 ```
 
-3.Activaet Conda
+3.Activate Conda
 ```
 conda activate gripper
 ```
