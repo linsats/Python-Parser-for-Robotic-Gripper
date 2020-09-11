@@ -22,10 +22,15 @@ git clone https://github.com/linsats/Python-Parser-for-Robotic-Gripper.git
 
 2.Install requirement
 ```
-pip3 install -r requirements.txt
+conda create --name gripper --file requirements.txt
 ```
 
-3.Run
+3.Activaet Conda
+```
+conda activate gripper
+```
+
+4.Run 
 ```
 python gripper_files.py
 
